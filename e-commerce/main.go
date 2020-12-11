@@ -1,13 +1,19 @@
 package main
 
 import (
+	"github.com/mongodb/mongo-go-driver/mongo/options"
 	"encoding/json"
 	"log"
 	"net/http"
+	"context"
+	"time"
 
 	"github.com/gorilla/mux"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // DB struct to initialize the database
@@ -117,15 +123,26 @@ func (db *DB) DeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	session, err := mgo.Dial("127.0.0.1")
-	if err != nil {
-		log.Println("session creatin error", err)
-	}
+	// session, err := mgo.Dial("127.0.0.1")
+	// if err != nil {
+	// 	log.Println("session creatin error", err)
+	// }
 
-	database := session.DB("Ecommerce")
-	db := &DB{
-		Database: database,
+	// database := session.DB("Ecommerce")
+	// db := &DB{
+	// 	Database: database,
+	// }
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := mongo.NewClient(options.Client().ApplyURI(""))
+	if err != nil {
+		fmt.Println(err)
 	}
+	err = client.Connect(ctx)
+	err = client.Ping(context.TODO(), nil)
+	fmt.Println("Database connected")
 	
 
 	mux := mux.NewRouter()
