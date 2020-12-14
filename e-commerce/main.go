@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/mongodb/mongo-go-driver/mongo/options"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -9,21 +8,24 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	// mgo "gopkg.in/mgo.v2"
+	// _ "gopkg.in/mgo.v2/bson"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // DB struct to initialize the database
 type DB struct {
-	Database *mgo.Database
+	Database *mongo.Database
 }
+
 
 // User to hold the users data
 type User struct {
-	ID        bson.ObjectId `json:"id" bson:"_id,omitempty"`
+	ID        primitive.ObjectID   `json:"id" bson:"_id,omitempty"`
 	Email     string        `json:"email" bson:"email"`
 	FirstName string        `json:"firstName" bson:"firstName"`
 	LastName  string        `json:"lastName" bson:"lastName"`
@@ -45,22 +47,24 @@ func (db *DB) GetUser(w http.ResponseWriter, r *http.Request) {
 
 	var user User
 
-	collection := db.Database.C("users")
-	statement := bson.M{"_id": bson.ObjectIdHex(vars["id"])}
-	err := collection.Find(statement).One(&user)
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	collection := db.Database.Collection("users")
+	ObjectID, _ := primitive.ObjectIDFromHex(vars["id"]) 
+	statement := bson.M{"_id": ObjectID}
+	err := collection.FindOne(ctx, statement).Decode(&user)
 
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("No Such User"))
 		// log.Fatalln("error in retrieving the data")
 	} else {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		response, err := json.Marshal(user)
-		if err != nil {
-			w.Write([]byte("error in converting struct to json "))
-			log.Fatalln("error in converting struct to json ", err)
-		}
-		w.Header().Set("Content-type", "application/json")
+		response, _ := json.Marshal(user)
+		// if err != nil {
+		// 	w.Write([]byte("error in converting struct to json "))
+		// 	log.Fatalln("error in converting struct to json ", err)
+		// }
 		w.Write(response)
 	}
 
@@ -80,18 +84,19 @@ func (db *DB) PostUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// store id
-		user.ID = bson.NewObjectId()
+		// user.ID = bson.NewObjectId()
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 		
-		collection := db.Database.C("users")
-		err = collection.Insert(user)
+		collection := db.Database.Collection("users")
+		result, err := collection.InsertOne(ctx, user)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Cannot insert user into database"))
 
 			log.Fatalln(err.Error())
 		} else {
-			w.Header().Set("Content-type", "application/json")
-			response, err := json.Marshal(user)
+			w.Header().Set("Content-Type", "application/json")
+			response, err := json.Marshal(result)
 			if err != nil {
 				log.Println("error in converting struct to json", err)
 			}
@@ -105,44 +110,57 @@ func (db *DB) PostUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// UpdateUser to update the user data from databse
+func (db *DB) UpdateUser(w http.ResponseWriter, r *http.Request){
+	vars := mux.Vars(r)
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+
+	collection := db.Database.Collection("users")
+	ObjectID, _:= primitive.ObjectIDFromHex(vars["id"])
+	statement := bson.M{"_id": ObjectID}
+	update := bson.M{}
+
+	result, err := collection.UpdateOne(ctx, statement)
+}
+
 // DeleteUser to delete user data from database
 func (db *DB) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 
-	collection := db.Database.C("users")
-	statement := bson.M{"_id": bson.ObjectIdHex(vars["id"])}
+	collection := db.Database.Collection("users")
+	ObjectID, _ := primitive.ObjectIDFromHex(vars["id"]) 
+	statement := bson.M{"_id": ObjectID}
 
-	err := collection.Remove(statement)
+	result, err := collection.DeleteOne(ctx, statement)
 	if err != nil {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(err.Error()))
 	} else {
 		w.Header().Set("Content-type", "text/plain")
 		w.Write([]byte("Deleted Succesfully!"))
+		log.Printf("Delete 1 %v", result)
+		log.Printf("Delete 1 %v", result.DeletedCount)
 	}
 }
 
 func main() {
-	// session, err := mgo.Dial("127.0.0.1")
-	// if err != nil {
-	// 	log.Println("session creatin error", err)
-	// }
-
-	// database := session.DB("Ecommerce")
-	// db := &DB{
-	// 	Database: database,
-	// }
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	client, err := mongo.NewClient(options.Client().ApplyURI(""))
+	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	err = client.Connect(ctx)
 	err = client.Ping(context.TODO(), nil)
-	fmt.Println("Database connected")
+	log.Println("Database connected")
+
+	database := client.Database("Ecommerce")
+	db := &DB{
+		Database: database,
+	}
 	
 
 	mux := mux.NewRouter()
