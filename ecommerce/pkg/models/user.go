@@ -18,10 +18,10 @@ var DB *mongo.Database
 type User struct {
 	ID        primitive.ObjectID   `json:"id" bson:"_id,omitempty"`
 	Email     string        `json:"email,omitempty" bson:"email,omitempty"`
-	FirstName string        `json:"firstName,omitempty" bson:"firstName,omitempty"`
-	LastName  string        `json:"lastName,omitempty" bson:"lastName,omitempty"`
+	// FirstName string        `json:"firstName,omitempty" bson:"firstName,omitempty"`
+	// LastName  string        `json:"lastName,omitempty" bson:"lastName,omitempty"`
 	Password  string        `json:"password,omitempty" bson:"password,omitempty"`
-	Item      Item          `json:"item,omitempty" bson:"item,omitempty"`
+	// Item      Item          `json:"item,omitempty" bson:"item,omitempty"`
 }
 
 // Address struct to hold the address data

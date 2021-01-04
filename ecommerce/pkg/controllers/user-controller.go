@@ -31,32 +31,24 @@ func GetUser(w http.ResponseWriter, r *http.Request){
 // PostUser to post the user into database
 func PostUser(w http.ResponseWriter, r *http.Request) {
 
-	contentType := r.Header.Get("content-type")
-
-	if contentType == "application/json" {
-		
-		decoder := json.NewDecoder(r.Body)
-		result, err := models.CreateUser(decoder)
-		
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Cannot insert user into database"))
-
-			log.Fatalln(err.Error())
-		} else {
-			w.Header().Set("Content-Type", "application/json")
-			response, err := json.Marshal(result)
-			if err != nil {
-				log.Println("error in converting struct to json", err)
-			}
+	decoder := json.NewDecoder(r.Body)
+	result, err := models.CreateUser(decoder)
 	
-			w.Write(response)
-		}
-	} else {
-		w.WriteHeader(http.StatusNotAcceptable)
-		w.Write([]byte("unsupported format"))
-	}
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Cannot insert user into database"))
 
+		log.Fatalln(err.Error())
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		response, err := json.Marshal(result)
+		if err != nil {
+			log.Println("error in converting struct to json", err)
+		}
+
+		w.Write(response)
+	}
+	
 }
 
 // UpdateUser to update the user data from databse

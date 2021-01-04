@@ -4,13 +4,19 @@ package controllers
 import (
 	"encoding/json"
 	"log"
+	"html/template"
 	"net/http"
 	"github.com/gorilla/mux"
 	"github.com/kunalprakash1309/ecommerce/pkg/models"
+	"github.com/kunalprakash1309/ecommerce/pkg/config"
 )
+
+var tpl *template.Template
 
 // GetItem to get the items by provided id from item colleciton
 func GetItem(w http.ResponseWriter, r *http.Request){
+
+	tpl = config.Tpl
 	// get all parameters in form of map
 	vars := mux.Vars(r)
 	userID := vars["id"]
@@ -31,30 +37,24 @@ func GetItem(w http.ResponseWriter, r *http.Request){
 // PostItem to post the item data into items collection
 func PostItem(w http.ResponseWriter, r *http.Request) {
 
-	contentType := r.Header.Get("content-type")
 
-	if contentType == "application/json" {
-		
-		decoder := json.NewDecoder(r.Body)
-		result, err := models.CreateItem(decoder)
-		
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Cannot insert user into database"))
-
-			log.Fatalln(err.Error())
-		} else {
-			w.Header().Set("Content-Type", "application/json")
-			response, err := json.Marshal(result)
-			if err != nil {
-				log.Println("error in converting struct to json", err)
-			}
+	decoder := json.NewDecoder(r.Body)
+	result, err := models.CreateItem(decoder)
 	
-			w.Write(response)
-		}
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Cannot insert user into database"))
+
+		log.Fatalln(err.Error())
+		w.Write([]byte(err.Error()))
 	} else {
-		w.WriteHeader(http.StatusNotAcceptable)
-		w.Write([]byte("unsupported format"))
+		w.Header().Set("Content-Type", "application/json")
+		response, err := json.Marshal(result)
+		if err != nil {
+			log.Println("error in converting struct to json", err)
+		}
+
+		w.Write(response)
 	}
 
 }

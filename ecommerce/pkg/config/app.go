@@ -4,12 +4,14 @@ import (
 	"context"
 	"time"
 	"log"
+	"html/template"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var DB *mongo.Database
+var Tpl *template.Template
 
 // Setup initializes a mongo client
 func Setup(ctx context.Context, address string) {
@@ -31,4 +33,8 @@ func Setup(ctx context.Context, address string) {
 
 	DB = db
 	
+}
+
+func Template() {
+	Tpl = template.Must(template.ParseGlob("../../templates/*.gohtml"))
 }
