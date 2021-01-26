@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+import "google/protobuf/wrappers.proto";
+
+package ecommerce;
+
+service OrderManagement {
+    rpc getOrder (google.protobuf.StringValue) returns (Order); // remote method for retrieving an order
+    rpc searchOrders (google.protobuf.StringValue) returns (stream Order);
+    rpc updateOrders (stream Order) returns (google.protobuf.StringValue);
+}
+
+// here one order message can have any number of items
+message Order {
+    string id = 1;
+    repeated string items = 2;  // repeated is used to represent the fields that can be repeated any number of items
+    string description = 3;
+    float price = 4;
+    string destination = 5;
+}
+
