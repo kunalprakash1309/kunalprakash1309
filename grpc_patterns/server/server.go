@@ -19,6 +19,7 @@ import (
 
 const (
 	port = ":50051"
+	orderBatchSize = 3
 )
 
 var orderMap = make(map[string]pb.Order)
@@ -80,6 +81,57 @@ func (s *server) UpdateOrders(stream pb.OrderManagement_UpdateOrdersServer) erro
 		log.Printf("Order ID: %s - %s", order.Id, "Updated")
 		orderStr += order.Id + ", "
 
+	}
+}
+
+// Bi-directional streaming RPC
+func (s *server) ProcessOrders(stream pb.OrderManagement_ProcessOrdersServer) error {
+	batchMarker := 1
+	var combinedShipmentMap = make(map[string]pb.CombinedShipment)
+	for {
+		orderId, err := stream.Recv()
+		log.Printf("Reading Proc order : %s", orderId)
+		if err == io.EOF{
+			// Client has sent all the messages
+			// Send remaining shipments
+			log.Printf("EOF : %s", orderId)
+			for _, shipment := range combinedShipmentMap {
+				if err := stream.Send(&shipment); err != nil {
+					return err
+				}
+			}
+		}
+		if err != nil {
+			log.Println(err)
+		}
+
+		destination := orderMap[orderId.GetValue()].Destination
+		shipment, found := combinedShipmentMap[destination]
+
+		if found {
+			ord := orderMap[orderId.GetValue()]
+			shipment.OrdersList = append(shipment.OrdersList, &ord)
+			combinedShipmentMap[destination] = shipment
+		} else {
+			comShip := pb.CombinedShipment{Id: "cmb - " + (orderMap[orderId.GetValue()].Destination), Status: "Processed!",}
+			ord := orderMap[orderId.GetValue()]
+			comShip.OrdersList = append(shipment.OrdersList, &ord)
+			combinedShipmentMap[destination] = shipment
+			log.Print(len(comShip.OrdersList), comShip.GetId())
+		}
+
+		if batchMarker == orderBatchSize {
+			for _, comb := range combinedShipmentMap {
+				log.Printf("Shipping : %v -> %v" , comb.Id, len(comb.OrdersList))
+				if err := stream.Send(&comb); err != nil {
+					return err
+				}
+			}
+			batchMarker = 0
+			combinedShipmentMap = make(map[string]pb.CombinedShipment)
+		} else {
+			batchMarker++
+		}
 	}
 }
 

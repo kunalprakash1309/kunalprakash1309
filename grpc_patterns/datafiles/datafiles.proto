@@ -8,6 +8,7 @@ service OrderManagement {
     rpc getOrder (google.protobuf.StringValue) returns (Order); // remote method for retrieving an order
     rpc searchOrders (google.protobuf.StringValue) returns (stream Order);
     rpc updateOrders (stream Order) returns (google.protobuf.StringValue);
+    rpc processOrders(stream google.protobuf.StringValue) returns (stream CombinedShipment);
 }
 
 // here one order message can have any number of items
@@ -17,5 +18,11 @@ message Order {
     string description = 3;
     float price = 4;
     string destination = 5;
+}
+
+message CombinedShipment {
+    string id = 1;
+    string status = 2;
+    repeated Order ordersList = 3;
 }
 

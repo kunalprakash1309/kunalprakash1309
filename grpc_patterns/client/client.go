@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"io"
 	// "io"
 	"log"
 	"time"
 
 	// "github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	pb "github.com/kunalprakash1309/grpc_patterns/datafiles"
 	"google.golang.org/grpc"
 )
@@ -27,25 +29,25 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	// // Get Order
-	// retrievedOrder, err := client.GetOrder(ctx,
-	// 	&wrappers.StringValue{Value: "106"})
-	// log.Print("GetOrder Response --> :", retrievedOrder)
+	// Get Order
+	retrievedOrder, err := client.GetOrder(ctx,
+		&wrappers.StringValue{Value: "106"})
+	log.Print("GetOrder Response --> :", retrievedOrder)
 
-	// // Search Order : Server streaming scenario
-	// searchStream, _ := client.SearchOrders(ctx, &wrappers.StringValue{Value: "Google"})
+	// Search Order : Server streaming scenario
+	searchStream, _ := client.SearchOrders(ctx, &wrappers.StringValue{Value: "Google"})
 	
-	// for {
-	// 	searchOrder, err := searchStream.Recv()
-	// 	if err == io.EOF {
-	// 		log.Print("EOF")
-	// 		break
-	// 	}
+	for {
+		searchOrder, err := searchStream.Recv()
+		if err == io.EOF {
+			log.Print("EOF")
+			break
+		}
 
-	// 	if err == nil {
-	// 		log.Print("Search Result : ", searchOrder)
-	// 	}
-	// }
+		if err == nil {
+			log.Print("Search Result : ", searchOrder)
+		}
+	}
 
 	// Update Orders : Client streaming scenario
 	updOrder1 := pb.Order{Id: "102", Items:[]string{"Kunal Pixel 3A", "Google Pixel Book"}, Destination:"Mountain View, CA", Price:1100.00}
@@ -79,4 +81,45 @@ func main() {
 	}
 
 	log.Printf("Update Orders Res: %s", updateRes)
+
+	// Bi-Di streaming
+	streamProcOrder, err := client.ProcessOrders(ctx)
+	if err != nil {
+		log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
+	}
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
+	}
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value:"103"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "103", err)
+	}
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value:"104"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
+	}
+
+	channel := make(chan struct{})
+	go asncClientBidirectionalRPC(streamProcOrder, channel)
+	time.Sleep(time.Millisecond * 1000)
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value:"101"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	}
+	if err := streamProcOrder.CloseSend(); err != nil {
+		log.Fatal(err)
+	}
+	<- channel
+}
+
+func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrdersClient, c chan struct{}) {
+	for {
+		combinedShipment, errProcOrder := streamProcOrder.Recv()
+		if errProcOrder == io.EOF {
+			break
+		}
+		log.Println("Combined shipment : ", combinedShipment.OrdersList)
+	}
+	<-c
 }
