@@ -1,5 +1,7 @@
 package helpers
 
+// Models specify what data a service can recieve and produce back
+
 // EncryptRequest structures request coming from client
 type EncryptRequest struct {
 	Text string `json:"text"`
