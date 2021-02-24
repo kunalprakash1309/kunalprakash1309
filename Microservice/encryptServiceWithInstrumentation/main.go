@@ -7,15 +7,33 @@ import (
 
 	kitlog "github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
-
-	"github.com/kunalprakash1309/Microservice/encryptServiceWithLogging/helpers"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+ 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/kunalprakash1309/Microservice/encryptServiceWithInstrumentation/helpers"
 )
 
 func main() {
 	logger := kitlog.NewLogfmtLogger(os.Stderr)
+	fieldKeys := []string{"method", "error"}
+	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "encryption",
+		Subsystem: "my_service",
+		Name: "request_count",
+		Help: "Number of requests received",
+	}, fieldKeys)
+
+	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "encryption",
+		Subsystem: "my_service",
+		Name: "request_latency_microseconds",
+		Help: "Total duration of requests in microseconds.",
+	}, fieldKeys)
+	   
 	var svc helpers.EncryptService
 	svc = helpers.EncryptServiceInstance{}
 	svc = helpers.LoggingMiddleware{Logger: logger, Next: svc}
+	svc = helpers.InstrumentingMiddleware{RequestCount: requestCount, RequestLatency: requestLatency, Next: svc}
 
 	encrypthandler := httptransport.NewServer(
 		helpers.MakeEncryptEndpoint(svc),
@@ -31,6 +49,7 @@ func main() {
 
 	http.Handle("/encrypt", encrypthandler)
 	http.Handle("/decrypt", decryptHandler)
+	http.Handle("/metrics", promhttp.Handler())
 
 	log.Fatalln(http.ListenAndServe(":8000", nil))
 }

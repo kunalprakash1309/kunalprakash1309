@@ -3,7 +3,6 @@ package helpers
 import (
 	"context"
 	"time"
-	"fmt"
 
 	"github.com/go-kit/kit/log"
 )
@@ -26,7 +25,7 @@ func (mw LoggingMiddleware) Encrypt(ctx context.Context, key string, text string
 			"took", time.Since(begin),
 		)
 	} (time.Now())
-	
+
 	output, err = mw.Next.Decrypt(ctx, key, text)
 	return
 }

@@ -3,7 +3,6 @@ package helpers
 import (
 	"context"
 	"time"
-	"fmt"
 
 	"github.com/go-kit/kit/log"
 )
